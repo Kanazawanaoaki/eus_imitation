@@ -1,7 +1,7 @@
 # 機械学習関連
+numpy<2
 torch
 torchvision
-numpy
 opencv-python
 pillow
 datasets
