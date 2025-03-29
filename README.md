@@ -21,3 +21,13 @@ python3 rosbag2npy.py -d ../data/20230728/rosbags
 ```
 it will convert rosbag-0.bag to episode_0.npy
 tfds dataset can be build with this [repo](https://github.com/ojh6404/rlds_dataset_builder.git) 
+
+
+
+## Lerobot
+### Setup
+```bash
+cd lerobot_ros
+docker build -t lerobot_ros .
+bash run_container.sh
+```

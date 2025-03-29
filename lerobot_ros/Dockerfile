@@ -100,5 +100,22 @@ RUN cd /root/catkin_ws && \
 RUN echo "source /opt/ros/one/setup.bash" >> /root/.bashrc && \
     echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
 
+## lerobotのinstall
+RUN apt-get update && apt-get install -y \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libavfilter-dev \
+    libswscale-dev \
+    libswresample-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /root/workspace && \
+    cd /root/workspace && \
+    git clone https://github.com/huggingface/lerobot.git && \
+    cd lerobot && git checkout 32eb0cec8f322a7d93a1ec2008dd1a11ae6286b3  && pip install --no-binary=av -e . --ignore-installed
+
 # 作業ディレクトリ
 WORKDIR /root/catkin_ws
