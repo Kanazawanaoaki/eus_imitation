@@ -28,6 +28,8 @@ from build_data_from_rosbag import RosbagEpisode
 from pathlib import Path
 import pickle
 
+import datetime
+
 @dataclass
 class DummyEpisode:
     images: np.ndarray
@@ -124,12 +126,16 @@ if __name__ == "__main__":
     output_directory = Path("outputs/train/wrapping")
     output_directory.mkdir(parents=True, exist_ok=True)
 
+    current_time = datetime.datetime.now()
+    print("開始時の時刻:", current_time.strftime("%Y-%m-%d %H:%M:%S"))
+
     # episode_list = []
     # for _ in range(30):
     #     episode_list.append(DummyEpisode.create(80))
     with open('data/rosbag_episode.pkl', 'rb') as file:
         episode_list = pickle.load(file)
     dataset = convert_to_lerobot_dataset(episode_list, 10)
+
     delta_timestamps = {
         # "observation.image": [-0.1, 0.0],
         "observation.image.head": [-0.1, 0.0],
@@ -143,7 +149,18 @@ if __name__ == "__main__":
     device = torch.device("cuda")
     log_freq = 250
 
-    cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True)
+    resol = 112
+    camera_names = ["head", "second"]
+    input_shapes = {"observation.state": [14]}
+    for name in camera_names:
+        input_shapes[f"observation.image.{name}"] = [3, resol, resol]
+    output_shapes = {"action": [14]}
+    normalization_mode = {"observation.state": "min_max"}
+    for name in camera_names:
+        normalization_mode[f"observation.image.{name}"] = "mean_std"
+
+    # cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True)
+    cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True, input_shapes=input_shapes, output_shapes=output_shapes, input_normalization_modes=normalization_mode)
     effective_keys = list(cfg.output_shapes.keys()) + list(cfg.input_shapes.keys()) + ["episode_index", "frame_indx", "index", "next.done",  "timestamp"]
     effective_key_set = set(effective_keys)
     for key, value in dataset.stats.items():
@@ -154,7 +171,8 @@ if __name__ == "__main__":
             inner_dict[key_inner] = torch.tensor(value_inner)
         dataset.stats[key] = inner_dict
 
-    policy = DiffusionPolicy(cfg, dataset_stats=dataset.stats)
+
+    policy = DiffusionPolicy(config=cfg, dataset_stats=dataset.stats)
     policy.train()
     policy.to(device)
 
@@ -168,6 +186,9 @@ if __name__ == "__main__":
         pin_memory=device != torch.device("cpu"),
         drop_last=True,
     )
+
+    current_time = datetime.datetime.now()
+    print("学習の開始時の時刻:", current_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     step = 0
     done = False
@@ -187,3 +208,6 @@ if __name__ == "__main__":
                 done = True
                 break
     policy.save_pretrained(output_directory)
+
+    current_time = datetime.datetime.now()
+    print("学習の終了時の時刻:", current_time.strftime("%Y-%m-%d %H:%M:%S"))

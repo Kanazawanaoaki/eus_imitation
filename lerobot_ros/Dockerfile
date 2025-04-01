@@ -75,9 +75,7 @@ RUN cp /root/catkin_ws/src/eus_imitation/lerobot_ros/requirements.txt /tmp/requi
 # RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install --no-deps -r /tmp/requirements.txt && pip install sympy --ignore-installed
 RUN pip install "numpy<2" \
-    datasets \
-    git+https://github.com/ojh6404/imitator.git
-
+    datasets
 
 # # 依存ライブラリ（aptパッケージ）
 # RUN apt-get update && apt-get install -y \
@@ -115,7 +113,13 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /root/workspace && \
     cd /root/workspace && \
     git clone https://github.com/huggingface/lerobot.git && \
-    cd lerobot && git checkout 32eb0cec8f322a7d93a1ec2008dd1a11ae6286b3  && pip install --no-binary=av -e . --ignore-installed
+    cd lerobot && git checkout 538455a965ce25a6f7b81d8b5c8cee46b90a7df9  && pip install --no-binary=av -e . --ignore-installed
+
+RUN cd /root/workspace && \
+    git clone https://github.com/ojh6404/imitator.git && \
+    cd imitator && pip install -e .
+
+RUN pip install ipdb
 
 # 作業ディレクトリ
 WORKDIR /root/catkin_ws

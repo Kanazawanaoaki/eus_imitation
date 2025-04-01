@@ -76,11 +76,14 @@ class RosbagEpisode:
             else:
                 if "Image" in msg._type:
                     if "Compressed" in msg._type:
-                        data = config['img_bridge'].compressed_imgmsg_to_cv2(msg, "rgb8").astype(
-                            np.uint8
-                        )
+                        # import ipdb
+                        # ipdb.set_trace()
+                        # data = config['img_bridge'].compressed_imgmsg_to_cv2(msg, "rgb8").astype(np.uint8) ## original
+                        np_arr = np.frombuffer(msg.data, np.uint8)
+                        data = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                     else:
                         data = config['img_bridge'].imgmsg_to_cv2(msg, "rgb8").astype(np.uint8)
+
                     data = cv2.resize(
                         data, tuple(config['obs_cfg'][config['topics_to_keys'][topic]].dim[:2]), interpolation=cv2.INTER_LANCZOS4
                     )
