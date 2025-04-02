@@ -47,6 +47,20 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 &
 RUN pip install --upgrade pip && \
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
+
+## userの設定
+RUN \
+  useradd user && \
+  echo "user ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/user && \
+  chmod 0440 /etc/sudoers.d/user && \
+  mkdir -p /home/user && \
+  chown user:user /home/user && \
+  chsh -s /bin/bash user
+# RUN useradd -m user
+
+RUN echo 'root:root' | chpasswd
+RUN echo 'user:user' | chpasswd
+
 # ROS One GPGキーとリポジトリ追加
 RUN mkdir -p /etc/apt/keyrings && \
     curl -sSL https://ros.packages.techfak.net/gpg.key -o /etc/apt/keyrings/ros-one-keyring.gpg && \
@@ -57,28 +71,31 @@ RUN mkdir -p /etc/apt/keyrings && \
 RUN apt-get update && apt-get install -y \
     ros-one-desktop \
     python3-rosdep \
-    python3-catkin-tools \
-    && rosdep init || true
+    python3-catkin-tools || true
 
 # rosdep 定義
 RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
-    echo "yaml https://ros.packages.techfak.net/ros-one.yaml ubuntu" > /etc/ros/rosdep/sources.list.d/1-ros-one.list && \
-    rosdep update
+    echo "yaml https://ros.packages.techfak.net/ros-one.yaml ubuntu" > /etc/ros/rosdep/sources.list.d/1-ros-one.list
+
+WORKDIR /home/user
+USER user
+SHELL ["/bin/bash", "-c"]
+
+ENV ROS_DISTRO=one
 
 # catkin ワークスペース作成 & リポジトリクローン
-RUN mkdir -p /root/catkin_ws/src && \
-    cd /root/catkin_ws/src && \
+RUN mkdir -p /home/user/catkin_ws/src && \
+    cd /home/user/catkin_ws/src && \
     git clone -b add-diffusion-policy https://github.com/Kanazawanaoaki/eus_imitation.git
 
 # 依存ライブラリ（pythonパッケージ）
-RUN cp /root/catkin_ws/src/eus_imitation/lerobot_ros/requirements.txt /tmp/requirements.txt
-# RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
+RUN cp ~/catkin_ws/src/eus_imitation/lerobot_ros/requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install --no-deps -r /tmp/requirements.txt && pip install sympy --ignore-installed
 RUN pip install "numpy<2" \
     datasets
 
-# # 依存ライブラリ（aptパッケージ）
-# RUN apt-get update && apt-get install -y \
+# # 依存ライブラリ（aptパッケージ） ## これがあると次のrosdepでエラーする
+# RUN sudo apt-get update && sudo apt-get install -y \
 #     ros-one-cv-bridge \
 #     ros-one-rospy \
 #     ros-one-rosbag \
@@ -86,20 +103,21 @@ RUN pip install "numpy<2" \
 #     ros-one-sensor-msgs \
 #     python3-numpy \
 #     python3-opencv \
-#     && rm -rf /var/lib/apt/lists/*
+#     && sudo rm -rf /var/lib/apt/lists/*
 
 # 依存解決と catkin build 実行
-RUN cd /root/catkin_ws && \
-    rosdep install --from-paths src --ignore-src -r -y && \
+RUN sudo rosdep init && sudo rosdep update
+RUN cd ~/catkin_ws && \
+    sudo rosdep install --from-paths src --ignore-src -r -y && \
     catkin config --extend /opt/ros/one && \
     catkin build
 
 # ROS 環境を常に読み込む設定
-RUN echo "source /opt/ros/one/setup.bash" >> /root/.bashrc && \
-    echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
+RUN echo "source /opt/ros/one/setup.bash" >> ~/.bashrc && \
+    echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
 
 ## lerobotのinstall
-RUN apt-get update && apt-get install -y \
+RUN sudo apt-get update && sudo apt-get install -y \
     libavformat-dev \
     libavcodec-dev \
     libavdevice-dev \
@@ -108,18 +126,19 @@ RUN apt-get update && apt-get install -y \
     libswscale-dev \
     libswresample-dev \
     pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+    && sudo rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /root/workspace && \
-    cd /root/workspace && \
+RUN mkdir -p ~/workspace && \
+    cd ~/workspace && \
     git clone https://github.com/huggingface/lerobot.git && \
     cd lerobot && git checkout 538455a965ce25a6f7b81d8b5c8cee46b90a7df9  && pip install --no-binary=av -e . --ignore-installed
 
-RUN cd /root/workspace && \
+RUN cd ~/workspace && \
     git clone https://github.com/ojh6404/imitator.git && \
     cd imitator && pip install -e .
 
 RUN pip install ipdb
 
-# 作業ディレクトリ
-WORKDIR /root/catkin_ws
+# # 作業ディレクトリ
+# WORKDIR ~/catkin_ws
+

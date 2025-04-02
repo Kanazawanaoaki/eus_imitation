@@ -212,5 +212,8 @@ if __name__ == "__main__":
         episode_list.append(RosbagEpisode.create(bag, config))
 
     # output
-    with open('data/rosbag_episode.pkl', 'wb') as file:
+    output_path = 'data/rosbag_episode.pkl'
+    output_dir = os.path.dirname(output_path)
+    os.makedirs(output_dir, exist_ok=True)
+    with open(output_path, 'wb') as file:
         pickle.dump(episode_list, file)
