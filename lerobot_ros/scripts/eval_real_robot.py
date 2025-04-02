@@ -17,6 +17,8 @@ from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionConfig
 
 from safetensors.torch import load_file
 
+# import rospy
+
 def rename_keys(state_dict):
     new_state_dict = {}
     for key, value in state_dict.items():
@@ -88,6 +90,8 @@ class ObsManager(object):
             head_rgb = self.get_image("head_images")
             second_rgb = self.get_image("second_images")
             # rgb = data['image']
+            head_rgb = cv2.resize(head_rgb, tuple(config['obs']['head_image'].dim[:2]), interpolation=cv2.INTER_LANCZOS4)
+            second_rgb = cv2.resize(second_rgb, tuple(config['obs']['head_image'].dim[:2]), interpolation=cv2.INTER_LANCZOS4)
             head_image = torch.from_numpy(head_rgb).float()
             second_image = torch.from_numpy(second_rgb).float()
             head_image = head_image.to(torch.float32) / 255
@@ -122,8 +126,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--feedback", action="store_tr", help="feedback mode")
     parser.add_argument("-pn", type=str, default="wrapping", help="project name")
-    parser.add_argument("--head_img_dir", default="sub_obs/head_images")
-    parser.add_argument("--second_img_dir", default="sub_obs/second_images")
+    # parser.add_argument("--head_img_dir", default="sub_obs/head_images")
+    # parser.add_argument("--second_img_dir", default="sub_obs/second_images")
     parser.add_argument("--obs_txt_file", default="sub_obs/obs.txt")
     parser.add_argument("-pp", type=str, help="project path name.")
     parser.add_argument("-n", type=int, default=100, help="epoch num")
@@ -158,7 +162,17 @@ if __name__ == "__main__":
                 stats[key][key_sub] = value_sub.to("cuda")
         print(stats)
 
-        cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True)
+        resol = 112
+        camera_names = ["head", "second"]
+        input_shapes = {"observation.state": [8]} # 14
+        for name in camera_names:
+            input_shapes[f"observation.image.{name}"] = [3, resol, resol]
+        output_shapes = {"action": [8]} # 14
+        normalization_mode = {"observation.state": "min_max"}
+        for name in camera_names:
+            normalization_mode[f"observation.image.{name}"] = "mean_std"
+        cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True, input_shapes=input_shapes, output_shapes=output_shapes, input_normalization_modes=normalization_mode)
+        # cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True)
         effective_keys = list(cfg.output_shapes.keys()) + list(cfg.input_shapes.keys()) + ["episode_index", "frame_indx", "index", "next.done",  "timestamp"]
         effective_key_set = set(effective_keys)
         for key, value in stats.items():

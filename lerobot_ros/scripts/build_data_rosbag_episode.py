@@ -151,10 +151,10 @@ if __name__ == "__main__":
 
     resol = 112
     camera_names = ["head", "second"]
-    input_shapes = {"observation.state": [14]}
+    input_shapes = {"observation.state": [8]} # 14
     for name in camera_names:
         input_shapes[f"observation.image.{name}"] = [3, resol, resol]
-    output_shapes = {"action": [14]}
+    output_shapes = {"action": [8]} # 14
     normalization_mode = {"observation.state": "min_max"}
     for name in camera_names:
         normalization_mode[f"observation.image.{name}"] = "mean_std"
