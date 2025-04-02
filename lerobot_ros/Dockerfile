@@ -112,6 +112,10 @@ RUN cd ~/catkin_ws && \
     catkin config --extend /opt/ros/one && \
     catkin build
 
+RUN cd /home/user/catkin_ws/src && \
+    git clone https://github.com/jsk-ros-pkg/jsk_common.git && \
+    catkin build jsk_tools -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
 # ROS 環境を常に読み込む設定
 RUN echo "source /opt/ros/one/setup.bash" >> ~/.bashrc && \
     echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
@@ -126,6 +130,7 @@ RUN sudo apt-get update && sudo apt-get install -y \
     libswscale-dev \
     libswresample-dev \
     pkg-config \
+    iproute2 \
     && sudo rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ~/workspace && \
@@ -136,6 +141,8 @@ RUN mkdir -p ~/workspace && \
 RUN cd ~/workspace && \
     git clone https://github.com/ojh6404/imitator.git && \
     cd imitator && pip install -e .
+
+
 
 ENV PATH="/home/user/.local/bin:$PATH"
 

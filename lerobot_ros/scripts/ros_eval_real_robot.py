@@ -17,7 +17,10 @@ from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionConfig
 
 from safetensors.torch import load_file
 
-# import rospy
+import rospy
+from cv_bridge import CvBridge
+from sensor_msgs.msg import CompressedImage, Image, JointState
+from eus_imitation_msgs.msg import FloatVector
 
 def rename_keys(state_dict):
     new_state_dict = {}
@@ -122,12 +125,49 @@ class ObsManager(object):
             # print(done)
             print(action_np)
 
+class InferenceNode(object):
+    def __init__(self, cfg: Dict[str, Any]):
+         # ノードの初期化
+        rospy.init_node('inference_node', anonymous=True)
+
+        import ipdb
+        ipdb.set_trace()
+
+        self.head_image_sub = rospy.Subscriber(cfg.obs.head_image.topic_name, CompressedImage, self.head_image_callback)
+        self.second_image_sub = rospy.Subscriber(cfg.obs.second_image.topic_name, CompressedImage, self.second_image_callback)
+
+        ### TODO from here
+        self.robot_state_sub = rospy.Subscriber(cfg.obs.second_image.topic_name, CompressedImage, self.second_image_callback)
+
+        self.robot_action_pub = rospy.Publisher('/image_size', String, queue_size=10)
+
+        # CvBridgeインスタンスの作成
+        self.bridge = CvBridge()
+
+    def image_callback(self, msg):
+        try:
+            # ROSメッセージからOpenCV画像に変換
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+
+            # 画像のサイズを取得
+            height, width, _ = cv_image.shape
+            image_size = f"Width: {width}, Height: {height}"
+
+            # サイズ情報をStringメッセージとしてパブリッシュ
+            self.string_pub.publish(image_size)
+
+        except Exception as e:
+            rospy.logerr(f"Error converting image: {e}")
+
+    def spin(self):
+        # ノードを実行し続ける
+        rospy.spin()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--feedback", action="store_tr", help="feedback mode")
     parser.add_argument("-pn", type=str, default="wrapping", help="project name")
-    # parser.add_argument("--head_img_dir", default="sub_obs/head_images")
-    # parser.add_argument("--second_img_dir", default="sub_obs/second_images")
     parser.add_argument("--obs_txt_file", default="sub_obs/obs.txt")
     parser.add_argument("-pp", type=str, help="project path name.")
     parser.add_argument("-n", type=int, default=100, help="epoch num")
@@ -151,6 +191,8 @@ if __name__ == "__main__":
     # remove txt file
     with open("pub_act/pub_act.txt", 'w') as file:
         pass
+
+    inference_node = InferenceNode(config)
 
     feedback_mode = True
     if feedback_mode:
