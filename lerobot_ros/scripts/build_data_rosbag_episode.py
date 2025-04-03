@@ -16,8 +16,7 @@ from lerobot.common.datasets.utils import (
     calculate_episode_data_index,
     hf_transform_to_torch,
 )
-import torch
-# import torchvision
+import imitator.utils.file_utils as FileUtils
 
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 # from lerobot.common.policies.diffusion.configuration_diffusion import DiffusionConfig
@@ -28,6 +27,8 @@ from build_data_from_rosbag import RosbagEpisode
 from pathlib import Path
 import pickle
 
+import os
+import argparse
 import datetime
 
 @dataclass
@@ -55,10 +56,11 @@ class DummyEpisode:
 
 
 def convert_to_lerobot_dataset(
-    episodes: List[RosbagEpisode],
-    fps: int,
-    batch_size: int = 32,
-    num_workers: int = 8) -> LeRobotDataset:
+        episodes: List[RosbagEpisode],
+        fps: int,
+        project_name: str,
+        batch_size: int = 32,
+        num_workers: int = 8) -> LeRobotDataset:
     # copied and tweaked from
     # https://github.com/ojh6404/imitator/blob/lerobot/imitator/scripts/lerobot_dataset_builder.py
 
@@ -116,25 +118,31 @@ def convert_to_lerobot_dataset(
     )
     print("compute stats")
     stats = compute_stats(lerobot_dataset, batch_size, num_workers)
-    with open('data/stats.pkl', 'wb') as file:
+    stats_path = os.path.join(FileUtils.get_data_dir(project_name), "stats.pkl")
+    with open(stats_path, 'wb') as file:
         pickle.dump(stats, file)
+    print("data stats is saved in {}".format(stats_path))
     lerobot_dataset.stats = stats
     return lerobot_dataset
 
 
 if __name__ == "__main__":
-    output_directory = Path("outputs/train/wrapping")
-    output_directory.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-pn", "--project_name", type=str)
+    args = parser.parse_args()
 
     current_time = datetime.datetime.now()
-    print("開始時の時刻:", current_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("[program start time] :", current_time.strftime("%Y-%m-%d %H:%M:%S"))
 
-    # episode_list = []
-    # for _ in range(30):
-    #     episode_list.append(DummyEpisode.create(80))
-    with open('data/rosbag_episode.pkl', 'rb') as file:
+    config = FileUtils.get_config_from_project_name(args.project_name)
+
+    output_directory = Path(FileUtils.get_models_dir(args.project_name))
+    output_directory.mkdir(parents=True, exist_ok=True)
+
+    data_path = os.path.join(FileUtils.get_data_dir(args.project_name), "rosbag_episode.pkl")
+    with open(data_path, 'rb') as file:
         episode_list = pickle.load(file)
-    dataset = convert_to_lerobot_dataset(episode_list, 10)
+    dataset = convert_to_lerobot_dataset(episode_list, 10, args.project_name)
 
     delta_timestamps = {
         # "observation.image": [-0.1, 0.0],
@@ -145,16 +153,25 @@ if __name__ == "__main__":
     }
     dataset.delta_timestamps = delta_timestamps
 
+    ## params
     training_steps = 5000
-    device = torch.device("cuda")
     log_freq = 250
+    device = torch.device("cuda")
 
-    resol = 112
-    camera_names = ["head", "second"]
-    input_shapes = {"observation.state": [8]} # 14
+    def check_camera_num(config):
+        obs_keys = list(config.obs.keys())
+        cnt = 0
+        for obs_key in obs_keys:
+            if config.obs[obs_key]['modality'] == 'ImageModality':
+                cnt += 1
+        return cnt
+
+    resol = config.obs.head_image.dim[0]
+    camera_names = ["head", "second"] ## TODO change camera num use chekc_camera_num
+    input_shapes = {"observation.state": [config.obs.robot_state.dim]}
     for name in camera_names:
         input_shapes[f"observation.image.{name}"] = [3, resol, resol]
-    output_shapes = {"action": [8]} # 14
+    output_shapes = {"action": [config.actions.dim]}
     normalization_mode = {"observation.state": "min_max"}
     for name in camera_names:
         normalization_mode[f"observation.image.{name}"] = "mean_std"
@@ -188,7 +205,7 @@ if __name__ == "__main__":
     )
 
     current_time = datetime.datetime.now()
-    print("学習の開始時の時刻:", current_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("[train start time]:", current_time.strftime("%Y-%m-%d %H:%M:%S"))
 
     step = 0
     done = False
@@ -207,7 +224,9 @@ if __name__ == "__main__":
             if step >= training_steps:
                 done = True
                 break
+
     policy.save_pretrained(output_directory)
+    print("trained model is saved in {}".format(output_directory))
 
     current_time = datetime.datetime.now()
-    print("学習の終了時の時刻:", current_time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("[train finish time]:", current_time.strftime("%Y-%m-%d %H:%M:%S"))

@@ -142,11 +142,11 @@ RUN cd ~/workspace && \
     git clone https://github.com/ojh6404/imitator.git && \
     cd imitator && pip install -e .
 
-
-
 ENV PATH="/home/user/.local/bin:$PATH"
 
 RUN pip install ipdb
+
+RUN sudo echo "alias l='ls -CF'" >> ~/.bashrc
 
 # # 作業ディレクトリ
 # WORKDIR ~/catkin_ws

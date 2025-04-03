@@ -177,7 +177,7 @@ class RosbagEpisode:
         actions = np.array(action_data)
 
         states = np.array([])
-        # obs
+        # obs ## TODO change for only single image
         for obs_key, obs_data in RosbagEpisode.obs_buf.items():
             obs_data = np.array(obs_data)
             if obs_key == 'head_image':
@@ -206,14 +206,13 @@ if __name__ == "__main__":
     print("Found {} rosbags".format(len(rosbags)))
 
     episode_list = []
-    # for _ in range(30):
-    #     episode_list.append(DummyEpisode.create(80))
     for _, bag in enumerate(rosbags):
         episode_list.append(RosbagEpisode.create(bag, config))
 
     # output
-    output_path = 'data/rosbag_episode.pkl'
-    output_dir = os.path.dirname(output_path)
-    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(FileUtils.get_data_dir(args.project_name), "rosbag_episode.pkl")
+    # output_dir = os.path.dirname(output_path)
+    # os.makedirs(output_dir, exist_ok=True)
     with open(output_path, 'wb') as file:
         pickle.dump(episode_list, file)
+    print("rosbag_episode data is saved in {}".format(output_path))
