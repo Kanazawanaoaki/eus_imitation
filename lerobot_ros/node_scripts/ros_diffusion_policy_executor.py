@@ -146,8 +146,6 @@ class InferenceNode(object):
 
         self.robot_action_pub = rospy.Publisher(cfg.actions.topic_name, FloatVector, queue_size=10)
 
-        self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
-
         # CvBridgeインスタンスの作成
         self.bridge = CvBridge()
 
@@ -194,6 +192,15 @@ class InferenceNode(object):
         # fixed_weights = rename_keys(pretrained_weights)
         self.policy.load_state_dict(pretrained_weights)
 
+        # self.timer = rospy.Timer(rospy.Duration(1.0), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.5), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(0.33), self.timer_callback) ## これは結構動く with 400
+        # self.timer = rospy.Timer(rospy.Duration(0.25), self.timer_callback) ## 良かった
+        # self.timer = rospy.Timer(rospy.Duration(0.2), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_callback)
+        print("finish init!")
+
     def head_image_callback(self, msg):
         try:
             # ROSメッセージからOpenCV画像に変換
@@ -232,7 +239,9 @@ class InferenceNode(object):
             rospy.logerr(f"Error converting robot_state: {e}")
 
     def timer_callback(self, event):
-        if (self.current_head_image is not  None) and (self.current_second_image is not  None) (self.current_robot_state is not  None):
+        if (self.current_head_image is not None) and (self.current_second_image is not None) and (self.current_robot_state is not None):
+            print(self.current_head_image is not None, self.current_second_image is not None, self.current_robot_state is not None)
+            # print(self.current_robot_state)
             head_rgb = cv2.resize(self.current_head_image, tuple(self.config['obs']['head_image'].dim[:2]), interpolation=cv2.INTER_LANCZOS4)
             second_rgb = cv2.resize(self.current_second_image, tuple(self.config['obs']['head_image'].dim[:2]), interpolation=cv2.INTER_LANCZOS4)
             head_image = torch.from_numpy(head_rgb).float()
@@ -243,12 +252,14 @@ class InferenceNode(object):
             second_image = second_image.permute(2, 0, 1)
             head_image = head_image.unsqueeze(0)
             second_image = second_image.unsqueeze(0)
+            # print(self.current_robot_state)
 
             state = torch.from_numpy(np.array(self.current_robot_state)).float().unsqueeze(0)
             # state = torch.from_numpy(np.array(data['float_list']).float().unsqueeze(0)
             head_image = head_image.to("cuda")
             second_image = second_image.to("cuda")
             state = state.to("cuda")
+            # print(state)
 
             observation = {
                 # "observation.image": head_image,
@@ -264,7 +275,10 @@ class InferenceNode(object):
             action_msg = FloatVector()
             action_msg.header.stamp = rospy.Time.now()
             action_msg.data = action_np
-            self.robot_action_pub.publish()
+            self.robot_action_pub.publish(action_msg)
+
+        else:
+            print(self.current_head_image is not None, self.current_second_image is not None, self.current_robot_state is not None)
 
 
     def spin(self):
@@ -294,5 +308,5 @@ if __name__ == "__main__":
 
     config = get_config_from_project_name(args.pn)
 
-    inference_node = InferenceNode(config)
+    inference_node = InferenceNode(config, n_pixel)
     inference_node.spin()
