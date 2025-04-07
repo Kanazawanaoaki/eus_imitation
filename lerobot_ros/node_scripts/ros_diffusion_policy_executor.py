@@ -26,7 +26,7 @@ from sensor_msgs.msg import CompressedImage, Image, JointState
 from eus_imitation_msgs.msg import FloatVector
 
 class InferenceNode(object):
-    def __init__(self, cfg: Dict[str, Any], project_name: str, n_pixel=112):
+    def __init__(self, cfg: Dict[str, Any], project_name: str, n_pixel=112, hz=3):
          # ノードの初期化
         rospy.init_node('diffusion_policy_executor', anonymous=True)
 
@@ -45,6 +45,7 @@ class InferenceNode(object):
 
         self.n_pixel = n_pixel
         self.config = cfg
+        self.hz = hz
 
         # setup policy
         model_dir = FileUtils.get_models_dir(project_name)
@@ -86,11 +87,12 @@ class InferenceNode(object):
         ### set timer callback
         # self.timer = rospy.Timer(rospy.Duration(1.0), self.timer_callback)
         # self.timer = rospy.Timer(rospy.Duration(0.5), self.timer_callback)
-        self.timer = rospy.Timer(rospy.Duration(0.33), self.timer_callback) ## これは結構動く with 400
+        # self.timer = rospy.Timer(rospy.Duration(0.33), self.timer_callback) ## これは結構動く with 400
         # self.timer = rospy.Timer(rospy.Duration(0.25), self.timer_callback) ## 良かった
         # self.timer = rospy.Timer(rospy.Duration(0.2), self.timer_callback)
         # self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
         # self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(1.0/hz), self.timer_callback)
         print("finish init!")
 
     def head_image_callback(self, msg):
@@ -181,6 +183,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-pn", type=str, default="wrapping", help="project name")
     parser.add_argument("-m", type=int, default=112, help="pixel num")
+    parser.add_argument("-hz", type=int, default=3, help="ros node hz")
     args = parser.parse_args()
 
     n_pixel: int = args.m
@@ -188,5 +191,5 @@ if __name__ == "__main__":
 
     config = get_config_from_project_name(project_name)
 
-    inference_node = InferenceNode(config, project_name, n_pixel)
+    inference_node = InferenceNode(config, project_name, n_pixel, hz)
     inference_node.spin()
