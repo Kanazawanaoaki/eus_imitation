@@ -1,0 +1,35 @@
+obs:
+  head_image:                 # NOTE must include "image" in obs name if it is image modality
+    topic_name: "/kinect_head/rgb/image_rect_color/compressed"
+    msg_type: "CompressedImage"
+    modality: "ImageModality" # NOTE "ImageModality" of "FloatVectorModality" is available
+    dim: [112, 112, 3]        # NOTE dim to resize image
+    camera: "primary"         # NOTE "primary" of "wrist"
+  second_image:                 # NOTE must include "image" in obs name if it is image modality
+    topic_name: "/r_hand_d405/color/image_rect_color/compressed"
+    msg_type: "CompressedImage"
+    modality: "ImageModality" # NOTE "ImageModality" of "FloatVectorModality" is available
+    dim: [112, 112, 3]        # NOTE dim to resize image
+    camera: "wrist"         # NOTE "primary" of "wrist"
+  robot_state:
+    topic_name: "/eus_imitation/robot_state"
+    msg_type: "FloatVector"
+    modality: "FloatVectorModality"
+    dim: 8 # 7DoF arm, grasp
+actions:
+  type: "action_trajectory"
+  dim: 8 # 7DoF arm, grasp
+  history: 2
+  horizon: 4
+  topic_name: "/eus_imitation/robot_action"
+  msg_type: "FloatVector"
+  modality: "FloatVectorModality"
+task:
+  language_instruction: "Pick up the green bowl"
+
+# ROS configuration
+ros:
+  rate: 10            # NOTE control rate
+  message_filters:    # NOTE mf filter config for rosbag dataset
+    slop: 0.1
+    queue_size: 1000
