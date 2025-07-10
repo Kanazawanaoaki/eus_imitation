@@ -135,8 +135,8 @@ RUN sudo apt-get update && sudo apt-get install -y \
 
 RUN mkdir -p ~/workspace && \
     cd ~/workspace && \
-    git clone https://github.com/huggingface/lerobot.git && \
-    cd lerobot && git checkout 538455a965ce25a6f7b81d8b5c8cee46b90a7df9  && pip install --no-binary=av -e . --ignore-installed
+    git clone https://github.com/Kanazawanaoaki/lerobot.git -b 20250710-backup && \
+    cd lerobot && pip install --no-binary=av -e . --ignore-installed
 
 RUN cd ~/workspace && \
     git clone https://github.com/ojh6404/imitator.git && \
