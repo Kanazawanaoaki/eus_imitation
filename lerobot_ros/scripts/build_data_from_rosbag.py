@@ -72,15 +72,18 @@ class RosbagEpisode:
             if topic == config['action_topic']:  # action
                 data = np.array(msg.data).astype(np.float32)
                 config['action_buf'].append(data)
-                RosbagEpisode.action_buf.append(data)
+                cls.action_buf.append(data)
             else:
                 if "Image" in msg._type:
                     if "Compressed" in msg._type:
                         # import ipdb
                         # ipdb.set_trace()
                         # data = config['img_bridge'].compressed_imgmsg_to_cv2(msg, "rgb8").astype(np.uint8) ## original
+
                         np_arr = np.frombuffer(msg.data, np.uint8)
-                        data = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                        # data = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                        bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                        data = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
                     else:
                         data = config['img_bridge'].imgmsg_to_cv2(msg, "rgb8").astype(np.uint8)
 
@@ -96,7 +99,7 @@ class RosbagEpisode:
                     ).astype(np.float32)
                 else:
                     data = np.array(msg.data).astype(np.float32)
-                RosbagEpisode.obs_buf[config['topics_to_keys'][topic]].append(data)
+                cls.obs_buf[config['topics_to_keys'][topic]].append(data)
 
     @classmethod
     def create(cls, bag, config):
@@ -149,9 +152,9 @@ class RosbagEpisode:
 
         ts.registerCallback(partial(cls.callback, config_dict))
         # obs_buf = dict()
-        RosbagEpisode.action_buf = []
+        cls.action_buf = []
         for obs_key in obs_keys:
-            RosbagEpisode.obs_buf[obs_key] = []
+            cls.obs_buf[obs_key] = []
 
         bag_reader = rosbag.Bag(bag, skip_index=True)
 
@@ -165,20 +168,20 @@ class RosbagEpisode:
 
         # action
         if config.actions.type == "action_trajectory":
-            action_data = np.array(RosbagEpisode.action_buf)
+            action_data = np.array(cls.action_buf)
         elif config.actions.type == "proprio_trajectory":
             action_data = np.diff(np.array(obs_buf["proprio"]), axis=0)
             #repeat last action
             action_data = np.concatenate(
                 [action_data, action_data[-1:]], axis=0
-                )
+            )
         else:
             raise NotImplementedError
         actions = np.array(action_data)
 
         states = np.array([])
         # obs ## TODO change for only single image
-        for obs_key, obs_data in RosbagEpisode.obs_buf.items():
+        for obs_key, obs_data in cls.obs_buf.items():
             obs_data = np.array(obs_data)
             if obs_key == 'head_image':
                 head_images = np.array(obs_data)
