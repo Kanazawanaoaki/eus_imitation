@@ -1,4 +1,3 @@
-# FROM nvidia/cuda:12.4.0-base-ubuntu22.04
 FROM nvidia/cuda:12.4.0-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -26,24 +25,6 @@ RUN apt-get update && apt-get install -y \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 && \
     update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
-
-# RUN apt-get update && apt-get install -y gnupg2 curl && \
-#     curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/7fa2af80.pub | apt-key add - && \
-#     echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list
-# RUN apt-get update && apt-get install -y \
-#     libcudnn9=9.1.0.* \
-#     libcudnn9-dev=9.1.0.* \
-#     && rm -rf /var/lib/apt/lists/*
-
-# # NVIDIA CUDA リポジトリはキー登録済みなので、これだけでOK
-# RUN echo "deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /" \
-#     > /etc/apt/sources.list.d/cuda.list
-
-# # cuDNN インストール
-# RUN apt-get update && \
-#     apt-get install -y libcudnn9 libcudnn9-dev && \
-#     rm -rf /var/lib/apt/lists/*
-
 RUN pip install --upgrade pip && \
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
@@ -56,7 +37,6 @@ RUN \
   mkdir -p /home/user && \
   chown user:user /home/user && \
   chsh -s /bin/bash user
-# RUN useradd -m user
 
 RUN echo 'root:root' | chpasswd
 RUN echo 'user:user' | chpasswd
@@ -89,21 +69,13 @@ RUN mkdir -p /home/user/catkin_ws/src && \
     git clone -b add-diffusion-policy https://github.com/Kanazawanaoaki/eus_imitation.git
 
 # 依存ライブラリ（pythonパッケージ）
+# RUN pip install "numpy<2" \
+#     datasets
 RUN cp ~/catkin_ws/src/eus_imitation/lerobot_ros/requirements.txt /tmp/requirements.txt
-RUN pip install --upgrade pip && pip install --no-deps -r /tmp/requirements.txt && pip install sympy --ignore-installed
-RUN pip install "numpy<2" \
-    datasets
-
-# # 依存ライブラリ（aptパッケージ） ## これがあると次のrosdepでエラーする
-# RUN sudo apt-get update && sudo apt-get install -y \
-#     ros-one-cv-bridge \
-#     ros-one-rospy \
-#     ros-one-rosbag \
-#     ros-one-message-filters \
-#     ros-one-sensor-msgs \
-#     python3-numpy \
-#     python3-opencv \
-#     && sudo rm -rf /var/lib/apt/lists/*
+# RUN pip install --upgrade pip  && pip install "numpy<2" && pip install --no-deps -r /tmp/requirements.txt && pip install sympy --ignore-installed
+RUN pip install --upgrade pip  && \
+    pip install "numpy<2" "rerun-sdk==0.21.0" "datasets==3.6.0" "opencv-python-headless==4.9.0.80" && \
+    pip install -r /tmp/requirements.txt && pip install sympy
 
 # 依存解決と catkin build 実行
 RUN sudo rosdep init && sudo rosdep update
@@ -136,7 +108,7 @@ RUN sudo apt-get update && sudo apt-get install -y \
 RUN mkdir -p ~/workspace && \
     cd ~/workspace && \
     git clone https://github.com/Kanazawanaoaki/lerobot.git -b 20250710-backup && \
-    cd lerobot && pip install -e . --ignore-installed
+    cd lerobot && pip install -e .
 
 RUN cd ~/workspace && \
     git clone https://github.com/ojh6404/imitator.git && \
@@ -147,7 +119,3 @@ ENV PATH="/home/user/.local/bin:$PATH"
 RUN pip install ipdb
 
 RUN sudo echo "alias l='ls -CF'" >> ~/.bashrc
-
-# # 作業ディレクトリ
-# WORKDIR ~/catkin_ws
-

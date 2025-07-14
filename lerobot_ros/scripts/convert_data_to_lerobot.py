@@ -85,8 +85,8 @@ def convert_to_lerobot_v21(
         # "episode_index":   Value("int64"),
     }
 
-    import ipdb
-    ipdb.set_trace()
+    # import ipdb
+    # ipdb.set_trace()
 
     lerobot_dataset = LeRobotDataset.create(
         repo_id=repo_id,
