@@ -13,9 +13,12 @@ import struct
 import torch
 from typing import Any, Dict, List, Optional, Type
 
-import imitator.utils.file_utils as FileUtils
+from imitator.utils.file_utils import (get_config_from_project_name,
+                                       get_models_dir)
 
-from lerobot.policies.diffusion.modeling_diffusion import DiffusionPolicy
+from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionConfig, DiffusionPolicy
+
+from safetensors.torch import load_file
 
 import rospy
 from cv_bridge import CvBridge
@@ -23,7 +26,7 @@ from sensor_msgs.msg import CompressedImage, Image, JointState
 from eus_imitation_msgs.msg import FloatVector
 
 class InferenceNode(object):
-    def __init__(self, cfg: Dict[str, Any], project_name: str, hz=3):
+    def __init__(self, cfg: Dict[str, Any], project_name: str, n_pixel=112, hz=3):
          # ノードの初期化
         rospy.init_node('diffusion_policy_executor', anonymous=True)
 
@@ -40,18 +43,55 @@ class InferenceNode(object):
         # CvBridgeインスタンスの作成
         self.bridge = CvBridge()
 
+        self.n_pixel = n_pixel
         self.config = cfg
         self.hz = hz
 
         # setup policy
         model_dir = FileUtils.get_models_dir(project_name)
-        pretrained_policy_path = os.path.join(model_dir, "pretrained_model")
+        stats_path = os.path.join(FileUtils.get_data_dir(project_name), "stats.pkl")
+        with Path(stats_path).open("rb") as f:
+            stats = pickle.load(f)
+        for key, value in stats.items():
+            for key_sub, value_sub in value.items():
+                stats[key][key_sub] = value_sub.to("cuda")
+        print(stats)
 
-        policy = DiffusionPolicy.from_pretrained(pretrained_policy_path)
-        policy.to("cuda")
+        resol = self.n_pixel
+        camera_names = ["head", "second"]
+        input_shapes = {"observation.state": [config.obs.robot_state.dim]}
+        for name in camera_names:
+            input_shapes[f"observation.image.{name}"] = [3, resol, resol]
+        output_shapes = {"action": [config.actions.dim]}
+        normalization_mode = {"observation.state": "min_max"}
+        for name in camera_names:
+            normalization_mode[f"observation.image.{name}"] = "mean_std"
+        cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True, input_shapes=input_shapes, output_shapes=output_shapes, input_normalization_modes=normalization_mode)
+        # cfg = DiffusionConfig(use_separate_rgb_encoder_per_camera=True)
+        effective_keys = list(cfg.output_shapes.keys()) + list(cfg.input_shapes.keys()) + ["episode_index", "frame_indx", "index", "next.done",  "timestamp"]
+        effective_key_set = set(effective_keys)
+        for key, value in stats.items():
+            if key not in effective_key_set:
+                continue
+            inner_dict = {}
+            for key_inner, value_inner in value.items():
+                inner_dict[key_inner] = torch.tensor(value_inner)
+        stats[key] = inner_dict
+
+        policy = DiffusionPolicy(cfg, dataset_stats=stats)
+        self.policy = policy.to("cuda")
+        pretrained_weights = load_file(os.path.join(model_dir, "model.safetensors"))
+        self.policy.load_state_dict(pretrained_weights)
 
 
         ### set timer callback
+        # self.timer = rospy.Timer(rospy.Duration(1.0), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.5), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.33), self.timer_callback) ## これは結構動く with 400
+        # self.timer = rospy.Timer(rospy.Duration(0.25), self.timer_callback) ## 良かった
+        # self.timer = rospy.Timer(rospy.Duration(0.2), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
+        # self.timer = rospy.Timer(rospy.Duration(0.05), self.timer_callback)
         self.timer = rospy.Timer(rospy.Duration(1.0/hz), self.timer_callback)
         print("finish init!")
 
@@ -142,13 +182,14 @@ class InferenceNode(object):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-pn", type=str, default="wrapping", help="project name")
+    parser.add_argument("-m", type=int, default=112, help="pixel num")
     parser.add_argument("-hz", type=int, default=3, help="ros node hz")
     args = parser.parse_args()
 
+    n_pixel: int = args.m
     project_name: str = args.pn
-    hz: int = args.hz
 
-    config = FileUtils.get_config_from_project_name(project_name)
+    config = get_config_from_project_name(project_name)
 
-    inference_node = InferenceNode(config, project_name, hz)
+    inference_node = InferenceNode(config, project_name, n_pixel, hz)
     inference_node.spin()

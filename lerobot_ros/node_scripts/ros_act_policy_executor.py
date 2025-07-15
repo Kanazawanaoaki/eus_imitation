@@ -15,8 +15,8 @@ from typing import Any, Dict, List, Optional, Type
 
 import imitator.utils.file_utils as FileUtils
 
-from lerobot.policies.diffusion.modeling_diffusion import DiffusionPolicy
-
+# from lerobot.policies.diffusion.modeling_diffusion import DiffusionPolicy
+from lerobot.policies.act.modeling_act import ACTPolicy
 import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage, Image, JointState
@@ -25,7 +25,7 @@ from eus_imitation_msgs.msg import FloatVector
 class InferenceNode(object):
     def __init__(self, cfg: Dict[str, Any], project_name: str, hz=3):
          # ノードの初期化
-        rospy.init_node('diffusion_policy_executor', anonymous=True)
+        rospy.init_node('act_policy_executor', anonymous=True)
 
         self.current_head_image = None
         self.current_second_image = None
@@ -47,7 +47,7 @@ class InferenceNode(object):
         model_dir = FileUtils.get_models_dir(project_name)
         pretrained_policy_path = os.path.join(model_dir, "pretrained_model")
 
-        policy = DiffusionPolicy.from_pretrained(pretrained_policy_path)
+        policy = ACTPolicy.from_pretrained(pretrained_policy_path)
         policy.to("cuda")
 
 
