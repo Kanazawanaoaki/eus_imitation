@@ -62,7 +62,8 @@ class InferenceNode(object):
             # cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
             # cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, "rgb8").astype(np.uinit8)
             np_arr = np.frombuffer(msg.data, np.uint8)
-            cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            bgr_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            cv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
 
             self.current_head_image = cv_image
 
@@ -75,7 +76,8 @@ class InferenceNode(object):
             # cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
             # cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, "rgb8").astype(np.uinit8)
             np_arr = np.frombuffer(msg.data, np.uint8)
-            cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            bgr_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            cv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
 
             self.current_second_image = cv_image
 
