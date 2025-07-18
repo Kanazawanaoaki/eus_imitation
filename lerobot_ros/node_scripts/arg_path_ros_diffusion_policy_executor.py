@@ -48,8 +48,8 @@ class InferenceNode(object):
         # pretrained_policy_path = os.path.join(model_dir, "pretrained_model")
         pretrained_policy_path = model_path
 
-        policy = DiffusionPolicy.from_pretrained(pretrained_policy_path)
-        policy.to("cuda")
+        self.policy = DiffusionPolicy.from_pretrained(pretrained_policy_path)
+        self.policy.to("cuda")
 
 
         ### set timer callback
@@ -118,8 +118,8 @@ class InferenceNode(object):
 
             observation = {
                 # "observation.image": head_image,
-                "observation.image.head": head_image,
-                "observation.image.second": second_image,
+                "observation.images.head": head_image,
+                "observation.images.second": second_image,
                 "observation.state": state
             }
             with torch.inference_mode():

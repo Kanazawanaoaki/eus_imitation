@@ -47,8 +47,8 @@ class InferenceNode(object):
         model_dir = FileUtils.get_models_dir(project_name)
         pretrained_policy_path = os.path.join(model_dir, "pretrained_model")
 
-        policy = ACTPolicy.from_pretrained(pretrained_policy_path)
-        policy.to("cuda")
+        self.policy = ACTPolicy.from_pretrained(pretrained_policy_path)
+        self.policy.to("cuda")
 
 
         ### set timer callback
@@ -117,8 +117,8 @@ class InferenceNode(object):
 
             observation = {
                 # "observation.image": head_image,
-                "observation.image.head": head_image,
-                "observation.image.second": second_image,
+                "observation.images.head": head_image,
+                "observation.images.second": second_image,
                 "observation.state": state
             }
             with torch.inference_mode():
