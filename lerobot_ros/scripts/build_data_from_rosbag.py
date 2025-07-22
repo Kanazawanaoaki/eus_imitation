@@ -189,6 +189,7 @@ class RosbagEpisode:
                 second_images = np.array(obs_data)
             if obs_key == 'robot_state':
                 states = np.array(obs_data)
+        print("data length:", len(head_images))
         return cls(head_images, second_images, states, actions)
 
 if __name__ == "__main__":
