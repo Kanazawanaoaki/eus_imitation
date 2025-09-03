@@ -50,7 +50,7 @@ class InferenceNode(object):
 
         self.policy = ACTPolicy.from_pretrained(pretrained_policy_path)
         self.policy.to("cuda")
-
+        self.policy.eval()
 
         ### set timer callback
         self.timer = rospy.Timer(rospy.Duration(1.0/hz), self.timer_callback)
